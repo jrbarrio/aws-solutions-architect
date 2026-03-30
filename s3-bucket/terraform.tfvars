@@ -1,0 +1,1 @@
+bucket_name = "jorge-roldan-solutions-architect-example-bucket"
