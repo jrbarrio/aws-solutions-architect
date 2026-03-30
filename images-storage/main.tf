@@ -1,0 +1,139 @@
+locals {
+  whitelist_cidrs = ["176.83.52.247/32"]
+
+  tags = {
+    Name    = "Dev"
+    Project = "Images Storage"
+  }
+}
+
+resource "aws_s3_bucket" "images_bucket" {
+  bucket = var.bucket_name
+
+  tags = local.tags
+}
+
+data "aws_iam_policy_document" "bucket_policy" {
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.images_bucket.arn}/*"]
+    
+    condition {
+      variable = "aws:SourceIP"
+      test     = "IpAddress"
+      values   = local.whitelist_cidrs 
+    }
+    
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "main" {
+  bucket = aws_s3_bucket.images_bucket.id
+  policy = data.aws_iam_policy_document.bucket_policy.json
+}
+
+resource "aws_dynamodb_table" "apps_storage" {
+  name           = var.dynamodb_name
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 1
+  write_capacity = 1
+  hash_key       = "ImageId"
+  range_key      = "LastUpdatedTime"
+
+  attribute {
+    name = "ImageId"
+    type = "S"
+  }
+
+  attribute {
+    name = "LastUpdatedTime"
+    type = "S"
+  }
+
+  tags = local.tags
+}
+
+resource "aws_lambda_function" "catalog-writer" {
+  // If the file is not in the current working directory you will need to include a
+  // path.module in the filename.
+  filename      = "catalog-writer.zip"
+  function_name = "catalog-writer"
+  role          = aws_iam_role.iam_for_lambda.arn
+  handler       = "code.lambda_handler"
+
+  source_code_hash = filebase64sha256("catalog-writer.zip")
+
+  runtime = "python3.9"
+}
+
+resource "aws_iam_role" "iam_for_lambda" {
+  name = "lambda-role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Effect": "Allow"
+    }
+  ]
+}
+EOF
+}
+
+// dynamodb table Write Policy
+data "aws_iam_policy_document" "inline_policy" {
+  statement {
+    actions = [
+      "dynamodb:DeleteItem",
+      "dynamodb:DescribeTable",
+      "dynamodb:GetItem",
+      "dynamodb:GetRecords",
+      "dynamodb:ListTables",
+      "dynamodb:PutItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+      "dynamodb:UpdateItem",
+      "dynamodb:UpdateTable",
+    ]
+
+    resources = [aws_dynamodb_table.apps_storage.arn]
+
+    effect = "Allow"
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_dynamodb_policy" {
+  name   = "policy-dynamodb-writer"
+  role   = aws_iam_role.iam_for_lambda.id
+  policy = data.aws_iam_policy_document.inline_policy.json
+}
+
+resource "aws_lambda_permission" "allow_bucket" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.catalog-writer.arn
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.images_bucket.arn
+}
+
+resource "aws_s3_bucket_notification" "bucket_notification" {
+  bucket = aws_s3_bucket.images_bucket.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.catalog-writer.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_suffix       = ".png"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket]
+}
