@@ -1,6 +1,8 @@
 resource "aws_s3_bucket" "tf_states_bucket" {
   bucket = var.bucket_name
 
+  force_destroy = true
+
   tags = {
     Name    = "Dev"
     Project = "AWS Solutions Architect"

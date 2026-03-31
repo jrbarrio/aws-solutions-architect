@@ -1,11 +1,13 @@
 init:
 	terraform init -reconfigure
 
-plan: init
+zip:
 	zip catalog-writer.zip code.py
+
+plan: init zip
 	terraform plan
 
-apply: init
+apply: init zip
 	terraform apply -auto-approve
 
 destroy: init
