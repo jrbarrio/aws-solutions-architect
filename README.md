@@ -18,3 +18,7 @@ make apply
 
 make destroy
 ```
+
+# tfsec
+
+Install tfsec from https://github.com/aquasecurity/tfsec

@@ -1,10 +1,14 @@
 init:
 	terraform init -reconfigure
 
-plan: init
+validate: init
+	terraform validate
+	tfsec . --tfvars-file=terraform.tfvars
+
+plan: validate
 	terraform plan
 
-apply: init
+apply: validate
 	terraform apply -auto-approve
 
 destroy: init
