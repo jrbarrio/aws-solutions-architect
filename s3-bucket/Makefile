@@ -1,10 +1,17 @@
 init:
 	terraform init -reconfigure
 
-plan: init
+validate: init
+	terraform validate
+	tfsec . --tfvars-file=terraform.tfvars
+
+cost:
+	infracost breakdown --path . --terraform-plan-flags="-var-file=terraform.tfvars"
+
+plan: validate cost
 	terraform plan
 
-apply: init
+apply: validate
 	terraform apply -auto-approve
 
 destroy: init

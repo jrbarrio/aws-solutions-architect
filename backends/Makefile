@@ -5,7 +5,10 @@ validate: init
 	terraform validate
 	tfsec . --tfvars-file=terraform.tfvars
 
-plan: validate
+cost:
+	infracost breakdown --path . --terraform-plan-flags="-var-file=terraform.tfvars"
+
+plan: validate cost
 	terraform plan
 
 apply: validate

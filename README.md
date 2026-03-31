@@ -22,3 +22,7 @@ make destroy
 # tfsec
 
 Install tfsec from https://github.com/aquasecurity/tfsec
+
+# infracost
+
+Install following instructions at https://oneuptime.com/blog/post/2026-01-26-infracost-iac-cost/view
