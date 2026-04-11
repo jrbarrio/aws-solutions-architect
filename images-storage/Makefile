@@ -1,5 +1,6 @@
 init:
 	terraform init -reconfigure
+	zip catalog-writer.zip code.py
 
 validate: init
 	terraform validate
@@ -14,6 +15,12 @@ plan: validate cost
 apply: validate
 	terraform apply -auto-approve
 
-destroy: init
+force-apply: init
+	terraform apply -auto-approve
+
+clean: init
 	terraform destroy -auto-approve
-	rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup
+	rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup errored.tfstate *.zip
+
+force-clean:
+	rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup errored.tfstate *.zip
