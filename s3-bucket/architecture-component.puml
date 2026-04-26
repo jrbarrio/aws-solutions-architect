@@ -1,0 +1,88 @@
+@startuml Terraform Module Structure
+
+title Terraform Module Structure - s3-bucket Project
+
+skinparam componentStyle rectangle
+skinparam backgroundColor white
+
+package "s3-bucket (Root Module)" {
+
+  [main.tf] as main #lightblue
+  [variables.tf] as vars #lightgreen
+  [provider.tf] as provider #lightyellow
+  [backend.tf] as backend #wheat
+  [terraform.tfvars] as tfvars #lavender
+
+  note right of main
+    **Defines:**
+    • locals (whitelist_cidrs, tags)
+    • module "s3" instantiation
+  end note
+
+  note right of provider
+    **Configures:**
+    • AWS Provider (LocalStack)
+    • Endpoints: localhost:4566
+    • Credentials: test/test
+  end note
+
+  note right of backend
+    **Backend Config:**
+    • Type: S3
+    • Bucket: aws-solutions-architect-tf-states
+    • Key: s3-bucket/terraform.tfstate
+    • Lock Table: aws-solutions-architect-tf-states-locks
+  end note
+}
+
+package "s3 (Child Module)" {
+
+  [s3/main.tf] as s3_main #lightcoral
+  [s3/variables.tf] as s3_vars #lightgreen
+
+  note right of s3_main
+    **Resources:**
+    • aws_s3_bucket
+    • aws_s3_object (hello-world.html)
+    • aws_s3_bucket_policy
+    • data.aws_iam_policy_document
+  end note
+}
+
+cloud "AWS / LocalStack" {
+  storage "S3 Bucket" as s3_bucket #orange
+  file "hello-world.html" as object #wheat
+  rectangle "Bucket Policy\n(IP Whitelist)" as policy #pink
+
+  database "State Bucket\n(aws-solutions-architect-tf-states)" as state_s3 #lightgray
+  database "Lock Table\n(aws-solutions-architect-tf-states-locks)" as state_ddb #lightgray
+}
+
+' Terraform Configuration Flow
+main --> s3_main : instantiates\nmodule "s3"
+vars --> main : input variables
+tfvars --> vars : variable values
+provider --> s3_main : AWS provider
+backend --> state_s3 : remote state
+backend --> state_ddb : state locking
+
+' Module to AWS Resources
+s3_main --> s3_bucket : creates
+s3_main --> object : uploads
+s3_main --> policy : attaches
+
+' Resource Relationships
+policy -[hidden]-> s3_bucket
+s3_bucket --> object : contains
+
+legend right
+  |= File |= Purpose |
+  | <back:#lightblue>main.tf</back> | Root module configuration |
+  | <back:#lightgreen>variables.tf</back> | Variable definitions |
+  | <back:#lightyellow>provider.tf</back> | Provider configuration |
+  | <back:#wheat>backend.tf</back> | State backend config |
+  | <back:#lavender>terraform.tfvars</back> | Variable values |
+  | <back:#lightcoral>s3/main.tf</back> | S3 module resources |
+endlegend
+
+@enduml

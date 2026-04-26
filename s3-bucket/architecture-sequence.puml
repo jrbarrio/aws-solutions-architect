@@ -1,0 +1,49 @@
+@startuml S3 Bucket Request Flow
+
+title S3 Bucket Request Flow - Access Control Sequence
+
+actor "User\n176.83.52.247/32" as User
+
+box "AWS Account (us-east-1)" #LightYellow
+  participant "S3 Bucket Policy\n(IP Validation)" as Policy
+  participant "S3 Bucket\njorge-roldan-solutions-architect-\nexample-bucket" as S3
+  participant "S3 Object\nhello-world.html" as Object
+end box
+
+== Successful Request Flow ==
+
+User -> Policy: GetObject Request\n(HTTPS)
+activate Policy
+
+Policy -> Policy: Extract Source IP\nfrom Request
+
+alt Source IP matches 176.83.52.247/32
+  Policy -> Policy: Evaluate Policy\n✅ Allow
+  Policy -> S3: Forward Request
+  activate S3
+
+  S3 -> Object: Retrieve Object
+  activate Object
+  Object --> S3: Return hello-world.html\n(text/html)
+  deactivate Object
+
+  S3 --> Policy: Object Data
+  deactivate S3
+  Policy --> User: 200 OK\n+ Object Content
+
+else Source IP does NOT match
+  Policy -> Policy: Evaluate Policy\n❌ Deny
+  Policy --> User: 403 Forbidden\nAccess Denied
+end
+
+deactivate Policy
+
+== Terraform State Management (Background) ==
+
+note over S3
+  Terraform state stored in:
+  • S3: aws-solutions-architect-tf-states
+  • DynamoDB: aws-solutions-architect-tf-states-locks
+end note
+
+@enduml

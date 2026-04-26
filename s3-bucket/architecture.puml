@@ -1,0 +1,80 @@
+@startuml S3 Bucket Architecture
+
+title AWS S3 Bucket Architecture - s3-bucket Project
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam rectangleBorderColor black
+skinparam rectangleFontSize 11
+skinparam actorBackgroundColor lightblue
+
+' External User
+actor "Whitelisted User\n176.83.52.247/32" as user
+
+package "AWS Account (us-east-1)" {
+
+  rectangle "Security Layer" as security_layer #mistyrose {
+    rectangle "S3 Bucket Policy\n\nEffect: Allow\nAction: s3:GetObject\nPrincipal: AWS:*\n\nCondition:\nIpAddress: 176.83.52.247/32" as policy #ffcccc
+  }
+
+  rectangle "Storage Layer" as storage_layer #lightyellow {
+    storage "S3 Bucket\njorge-roldan-solutions-\narchitect-example-bucket" as bucket #ff9900
+
+    file "S3 Object\nhello-world.html" as object #wheat
+
+    note right of bucket
+      Region: us-east-1
+      Tags:
+      - Name: Dev
+      - Project: Codely Course
+    end note
+
+    note right of object
+      Key: hello-world
+      Type: text/html
+      Size: ~165 bytes
+    end note
+  }
+
+  rectangle "Terraform Backend" as backend_layer #f5f5f5 {
+    storage "S3 State Bucket\naws-solutions-architect-\ntf-states" as state_s3 #cccccc
+
+    database "DynamoDB Lock Table\naws-solutions-architect-\ntf-states-locks" as state_ddb #cccccc
+
+    note right of state_s3
+      Key: s3-bucket/
+      terraform.tfstate
+      Encryption: Enabled
+    end note
+
+    note right of state_ddb
+      Purpose: State Locking
+      Prevents: Concurrent Mods
+    end note
+  }
+}
+
+' Relationships - Request Flow
+user -right-> policy : 1. GetObject Request\n(HTTPS)
+policy -right-> bucket : 2. Validate IP\n3. Allow Access
+bucket -down-> object : 4. Contains
+
+' Relationships - State Management
+bucket .down.> state_s3 : Terraform State
+bucket .down.> state_ddb : State Lock
+
+legend right
+  |= Symbol |= Meaning |
+  | --> | API Request Flow |
+  | .> | Backend/State |
+
+  |= Color |= Layer |
+  | #mistyrose | Security |
+  | #lightyellow | Storage |
+  | #f5f5f5 | Backend |
+  | #lightblue | External |
+endlegend
+
+center footer Generated from Terraform Configuration
+
+@enduml
