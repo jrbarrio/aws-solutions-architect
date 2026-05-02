@@ -26,3 +26,13 @@ Install tfsec from https://github.com/aquasecurity/tfsec
 # infracost
 
 Install following instructions at https://oneuptime.com/blog/post/2026-01-26-infracost-iac-cost/view
+
+# Localstack
+
+Examples can be deployed on you AWS account or locally with Localstack.
+Just select the right provider configuration on `provider.tf`.
+
+If you areworking with Localstack, start the Lockalstack docker image:
+```
+docker compose start
+```
